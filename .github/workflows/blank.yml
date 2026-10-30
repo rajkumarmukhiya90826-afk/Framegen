@@ -1,0 +1,45 @@
+name: Build FrameGen
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Zip extract karo aur project folder dhundo
+        id: find
+        run: |
+          shopt -s nullglob
+          zips=(*.zip)
+          if [ ${#zips[@]} -gt 0 ]; then
+            mkdir -p /tmp/proj
+            unzip -q -o "${zips[0]}" -d /tmp/proj
+            dir=$(dirname "$(find /tmp/proj -name gradlew -not -path '*/__MACOSX/*' | head -n 1)")
+          else
+            dir="$GITHUB_WORKSPACE"
+          fi
+          echo "Project dir: $dir"
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        working-directory: ${{ steps.find.outputs.dir }}
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon
+
+      - name: Jar upload karo
+        uses: actions/upload-artifact@v4
+        with:
+          name: framegen-mod
+          path: |
+            ${{ steps.find.outputs.dir }}/build/libs/*.jar
+            !${{ steps.find.outputs.dir }}/build/libs/*-sources.jar
